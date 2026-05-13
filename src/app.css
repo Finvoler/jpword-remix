@@ -1,0 +1,685 @@
+:root {
+  color-scheme: light;
+  font-family: "IBM Plex Sans", "Noto Sans SC", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #152427;
+  background:
+    radial-gradient(circle at top left, rgba(255, 212, 125, 0.45), transparent 30%),
+    radial-gradient(circle at right center, rgba(74, 156, 135, 0.2), transparent 24%),
+    linear-gradient(160deg, #f7f2e8 0%, #f1f5ef 52%, #edf3f5 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.shell {
+  width: min(1880px, calc(100vw - 8px));
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.6fr 0.9fr;
+  gap: 20px;
+  align-items: stretch;
+  margin-bottom: 22px;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 4.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.hero__text {
+  max-width: 70ch;
+  margin-top: 16px;
+  color: rgba(21, 36, 39, 0.76);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #4e7d71;
+  font-size: 0.74rem;
+}
+
+.upload-card,
+.panel,
+.feature-card,
+.voice-card,
+.score-lane {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(29, 58, 65, 0.08);
+  box-shadow: 0 18px 40px rgba(36, 54, 58, 0.1);
+}
+
+.upload-card {
+  border-radius: 28px;
+  padding: 24px;
+  display: grid;
+  align-content: space-between;
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-card::after {
+  content: "JPW";
+  position: absolute;
+  right: 18px;
+  bottom: -6px;
+  font-size: 4.8rem;
+  color: rgba(21, 36, 39, 0.06);
+  font-weight: 700;
+  letter-spacing: -0.08em;
+}
+
+.upload-card strong {
+  font-size: 1.35rem;
+  max-width: 12ch;
+}
+
+.upload-card input {
+  margin-top: 18px;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 304px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.panel {
+  border-radius: 28px;
+  padding: 20px;
+}
+
+.panel--controls {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.section-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.status-pill {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(239, 245, 238, 0.9);
+  color: #355047;
+  font-size: 0.95rem;
+}
+
+.transport-row,
+.export-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* ── MP3 export progress button ─────────────────────────────── */
+.export-btn-mp3 {
+  position: relative;
+  overflow: hidden;
+  min-width: 126px;
+}
+
+.mp3-progress__fill {
+  position: absolute;
+  inset: 0;
+  right: auto;          /* width controlled inline */
+  background: linear-gradient(90deg, rgba(29, 104, 217, 0.26), rgba(63, 148, 236, 0.22));
+  border-radius: inherit;
+  transition: width 220ms linear;
+  pointer-events: none;
+}
+
+.mp3-progress__label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.9rem;
+}
+
+.tempo-panel {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.primary-button,
+.secondary-button,
+.export-row button,
+.ghost-button {
+  border-radius: 16px;
+  padding: 12px 16px;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #164c49 0%, #2b7c73 100%);
+  color: white;
+  box-shadow: 0 12px 24px rgba(26, 91, 84, 0.24);
+}
+
+.transport-toggle {
+  min-width: 220px;
+  display: inline-grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.transport-toggle--playing {
+  background: linear-gradient(135deg, #9f3316 0%, #d7672d 100%);
+  box-shadow: 0 12px 24px rgba(175, 80, 39, 0.24);
+}
+
+.transport-toggle--paused {
+  background: linear-gradient(135deg, #173f53 0%, #2d7a93 100%);
+  box-shadow: 0 12px 24px rgba(43, 109, 140, 0.22);
+}
+
+.transport-toggle__state {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  opacity: 0.84;
+}
+
+.secondary-button,
+.export-row button,
+.ghost-button {
+  background: rgba(255, 255, 255, 0.9);
+  color: #18353c;
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.export-row button:hover,
+.ghost-button:hover,
+.note-chip:hover {
+  transform: translateY(-1px);
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.meta-grid article {
+  padding: 14px;
+  border-radius: 20px;
+  background: rgba(244, 248, 244, 0.92);
+  display: grid;
+  gap: 6px;
+}
+
+.meta-grid span,
+.voice-card span,
+.score-lane__header span,
+.instrument-legend span {
+  color: rgba(24, 53, 60, 0.65);
+  font-size: 0.9rem;
+}
+
+.voice-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.voice-card {
+  border-radius: 22px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.voice-card--selected {
+  outline: 2px solid rgba(39, 110, 99, 0.24);
+}
+
+.voice-card__header {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+}
+
+.voice-card__header strong {
+  display: block;
+}
+
+.field-group {
+  display: grid;
+  gap: 8px;
+}
+
+.field-group--compact input[type="number"] {
+  width: 100%;
+  border: 1px solid rgba(24, 53, 60, 0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.field-group select,
+.field-group input[type="range"] {
+  width: 100%;
+}
+
+.instrument-legend {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.instrument-legend div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.instrument-legend small {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(237, 242, 246, 0.9);
+  color: #274248;
+}
+
+.score-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.jianpu-score {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+}
+
+.jianpu-system {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+}
+
+.jianpu-system__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.jianpu-system__header span {
+  color: rgba(24, 53, 60, 0.6);
+}
+
+.jianpu-system__track {
+  position: relative;
+  border-radius: 30px;
+  padding: 18px 0;
+  background:
+    linear-gradient(180deg, rgba(253, 250, 242, 0.96), rgba(247, 242, 231, 0.94)),
+    radial-gradient(circle at top right, rgba(214, 171, 97, 0.16), transparent 34%);
+  border: 1px solid rgba(87, 63, 34, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 18px 36px rgba(81, 61, 34, 0.08);
+}
+
+.jianpu-row {
+  display: grid;
+  grid-template-columns: 88px auto;
+  min-height: 126px;
+}
+
+.jianpu-row + .jianpu-row {
+  border-top: 1px dashed rgba(95, 72, 43, 0.14);
+}
+
+.jianpu-row__label {
+  padding: 20px 12px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  color: #3f2f1f;
+}
+
+.jianpu-row__label span {
+  color: rgba(73, 56, 34, 0.58);
+}
+
+.jianpu-row__measures {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: stretch;
+}
+
+.jianpu-measure {
+  position: relative;
+  min-height: 126px;
+  padding: 20px 0 22px;
+  border-left: 2px solid rgba(69, 47, 25, 0.62);
+}
+
+.jianpu-measure:last-child {
+  border-right: 2px solid rgba(69, 47, 25, 0.62);
+}
+
+.jianpu-measure__number {
+  position: absolute;
+  top: 3px;
+  left: 14px;
+  font-size: 0.75rem;
+  color: rgba(86, 62, 35, 0.54);
+  font-variant-numeric: tabular-nums;
+}
+
+.jianpu-measure__playhead,
+.jianpu-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #ea5d3e, #efaa63);
+  box-shadow: 0 0 0 4px rgba(242, 97, 65, 0.08);
+  pointer-events: none;
+}
+
+.jianpu-playhead {
+  z-index: 4;
+}
+
+.jianpu-measure__playhead {
+  z-index: 3;
+}
+
+/* ── Token button ────────────────────────────────────────────── */
+.jianpu-token {
+  position: absolute;
+  top: 18px;
+  height: 82px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #1e140c;
+  cursor: pointer;
+  /* flex row: 28 px col | ext dashes fill the rest */
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+/* ── Vertical column: hi-oct / digit / underlines / lo-oct ────── */
+/* All four rows share a single 28 px axis → perfect alignment     */
+.jianpu-token__col {
+  display: grid;
+  grid-template-rows: 12px 34px 12px 12px; /* total 70 px */
+  justify-items: stretch;                   /* each row spans full 28 px */
+  width: 28px;
+  flex-shrink: 0;                           /* never compress the col */
+}
+
+/* High-octave dot row — dot hugs the bottom (nearest digit) */
+.jianpu-token__hi-oct {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 1px;
+}
+
+/* Digit row */
+.jianpu-token__digit-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 34px;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  white-space: nowrap;
+}
+
+/* Accidental (♯ / ♭) — floats to the left, never shifts the digit */
+.jianpu-token__acc {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.02rem;
+  line-height: 1;
+  color: rgba(41, 26, 13, 0.88);
+  white-space: nowrap;
+}
+
+/* Main note digit 0-7 */
+.jianpu-token__deg {
+  font-size: 1.95rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Rhythm dot (附点) — to the right of digit, aligned with bottom of digit */
+.jianpu-token__rdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  margin-left: 2px;
+  align-self: flex-end; /* sit at the bottom of the digit row */
+  margin-bottom: 4px;   /* lift slightly off baseline to match engraving convention */
+}
+
+/* Underlines row (eighth / sixteenth note beams) */
+.jianpu-token__lines {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  padding-top: 2px;
+  width: 22px;     /* slightly narrower than digit for aesthetics */
+  justify-self: center;
+}
+
+.jianpu-token__line {
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(30, 20, 12, 0.82);
+}
+
+.jianpu-token--rest .jianpu-token__lines {
+  opacity: 0.35;
+}
+
+/* Low-octave dot row — dot hugs the top (nearest underlines) */
+.jianpu-token__lo-oct {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 1px;
+}
+
+/* DotStack (shared by hi/lo octave markers) */
+.jianpu-dot-stack {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.jianpu-dot-stack__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(41, 26, 13, 0.72);
+  display: inline-block;
+}
+
+/* ── Extension dashes ─────────────────────────────────────────── */
+/* Flex sibling of __col; takes remaining token width.             */
+/* padding-top pushes dashes to digit vertical center:             */
+/*   12 px hi-oct + 17 px (½ digit) – 1 px (½ line) = 28 px       */
+.jianpu-token__ext {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-evenly;
+  padding-top: 28px;   /* dash center ≈ digit center */
+  padding-left: 4px;
+  padding-right: 4px;
+  box-sizing: border-box;
+}
+
+.jianpu-token__dash {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 2px;
+  background: rgba(30, 20, 12, 0.72);
+  border-radius: 1px;
+}
+
+.empty-state {
+  min-height: 280px;
+  border-radius: 28px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.empty-state h3 {
+  margin-bottom: 8px;
+}
+
+.feature-panel {
+  margin-top: 22px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.feature-card {
+  border-radius: 24px;
+  padding: 18px;
+}
+
+.feature-card__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: rgba(24, 53, 60, 0.62);
+}
+
+.feature-card h3 {
+  margin: 0 0 8px;
+}
+
+.feature-card p {
+  margin: 0 0 12px;
+  color: rgba(21, 36, 39, 0.75);
+}
+
+.feature-card code {
+  display: inline-block;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(237, 242, 246, 0.9);
+  color: #29474d;
+}
+
+@media (max-width: 1080px) {
+  .hero,
+  .workspace-grid,
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel--controls {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .shell {
+    width: min(100vw - 20px, 1440px);
+    padding-top: 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .panel,
+  .upload-card,
+  .feature-card {
+    border-radius: 22px;
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-row,
+  .export-row {
+    flex-direction: column;
+  }
+
+  .tempo-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .hero h1 {
+    font-size: 2.6rem;
+  }
+}

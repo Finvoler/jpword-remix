@@ -58,9 +58,9 @@ export async function renderMp3Blob(
     throw new Error("请至少选择一个声部再导出 MP3。");
   }
 
-  const durationSeconds = beatToSeconds(project.durationBeats, bpm) + 1;
+  const durationSeconds = beatToSeconds(project.durationBeats, bpm) + 2;
 
-  const audioBuffer = await Tone.Offline(() => {
+  const audioBuffer = await Tone.Offline(({ transport }) => {
     selectedVoices.forEach((voice) => {
       const synth = createInstrumentSynth(settings[voice.id].instrumentId).toDestination();
       synth.volume.value = settings[voice.id].volumeDb;
@@ -73,6 +73,8 @@ export async function renderMp3Blob(
         );
       });
     });
+    // Transport must be started for scheduled events to fire in offline context
+    transport.start();
   }, durationSeconds);
 
   return encodeMonoMp3(audioBuffer);

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { FeaturePoolPanel } from "./components/FeaturePoolPanel";
 import { JianpuScore } from "./components/JianpuScore";
 import { VoiceControlCard } from "./components/VoiceControlCard";
 import { instrumentOptions } from "./data/instruments";
@@ -221,12 +220,9 @@ export default function App() {
   return (
     <div className="shell">
       <header className="hero">
-        <div>
+        <div className="hero__title-block">
           <p className="eyebrow">JPW Remix</p>
           <h1>多声部简谱播放与导出工作台</h1>
-          <p className="hero__text">
-            直接面向 .jpwabc 工程文本重建播放与导出链路，支持任意声部组合播放、分声部乐器与音量、点击谱面跳播，以及 MIDI / MusicXML / MP3 导出。
-          </p>
         </div>
 
         <label className="upload-card">
@@ -242,8 +238,8 @@ export default function App() {
             <div>
               <p className="eyebrow">控制台</p>
               <h2>播放与导出</h2>
+              <p className="status-pill">{statusText}</p>
             </div>
-            <p className="status-pill">{statusText}</p>
           </div>
 
           <div className="transport-row">
@@ -381,8 +377,6 @@ export default function App() {
           )}
         </section>
       </main>
-
-      <FeaturePoolPanel />
     </div>
   );
 }

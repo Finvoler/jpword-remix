@@ -16,6 +16,8 @@ export function buildMidiFile(
     timeSignature: [project.meta.beatsPerMeasure, project.meta.beatUnit],
   });
 
+  const secondsPerBeat = 60 / bpm;
+
   project.voices
     .filter((voice) => selectedVoiceIds.includes(voice.id))
     .forEach((voice) => {
@@ -27,8 +29,8 @@ export function buildMidiFile(
       voice.events.forEach((event) => {
         track.addNote({
           midi: event.midi,
-          time: event.startBeats,
-          duration: event.durationBeats,
+          time: event.startBeats * secondsPerBeat,
+          duration: event.durationBeats * secondsPerBeat,
           velocity: 0.8,
         });
       });

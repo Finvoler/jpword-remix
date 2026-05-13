@@ -169,27 +169,21 @@ export default function App() {
       setBusyExport("mp3");
       setMp3Progress(0);
 
-      // Fake progress: animate 0 → 88 over estimated render time, snap to 100 when done
-      const durationSec = (project.durationBeats / playbackBpm) * 60 + 1;
-      const estimatedSec = Math.max(4, durationSec * 0.4);
-      const intervalMs = 200;
-      const stepSize = 88 / (estimatedSec * 1000 / intervalMs);
-      const timer = window.setInterval(() => {
-        setMp3Progress((prev) => Math.min(88, prev + stepSize));
-      }, intervalMs);
-
       try {
-        const blob = await renderMp3Blob(project, selectedVoiceIds, settings, playbackBpm);
-        window.clearInterval(timer);
+        const blob = await renderMp3Blob(
+          project,
+          selectedVoiceIds,
+          settings,
+          playbackBpm,
+          (pct) => setMp3Progress(pct),
+        );
         setMp3Progress(100);
-        await new Promise<void>((resolve) => setTimeout(resolve, 380));
+        await new Promise<void>((resolve) => setTimeout(resolve, 280));
         downloadBlob(blob, `${project.meta.title}.mp3`);
         setStatusText("MP3 导出完成。");
       } catch (error) {
-        window.clearInterval(timer);
         setStatusText(error instanceof Error ? error.message : "MP3 导出失败。");
       } finally {
-        window.clearInterval(timer);
         setMp3Progress(0);
         setBusyExport(null);
       }

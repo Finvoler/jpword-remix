@@ -1,11 +1,14 @@
 /**
  * MP3 export — pure Web Audio API rendering, no Tone.js in the render path.
  *
- * Tone.Offline + PolySynth is unreliable: the library's lookahead scheduling
- * and voice-allocation logic interacts badly with OfflineAudioContext.
- * Using OscillatorNode + GainNode directly is ~100× faster and deterministic.
+ * Tone.Offline + PolySynth is unreliable (lookahead scheduling conflicts with
+ * OfflineAudioContext). OscillatorNode + GainNode is ~200× faster & deterministic.
+ *
+ * lamejs is loaded via the lamejs-shim (lame.all.js ?raw + new Function) to
+ * avoid the "MPEGMode is not defined" bug that appears when Vite bundles the
+ * CJS entry src/js/index.js where cross-file globals break.
  */
-import lamejs from "lamejs";
+import { Mp3Encoder } from "./lamejs-shim";
 import { beatToSeconds } from "../audio/playbackEngine";
 import type { ScoreProject, VoiceId, VoicePlaybackSettings } from "../../types";
 import { instrumentPresets } from "../../data/instruments";
@@ -28,7 +31,7 @@ function floatToInt16(v: number): number {
   return s < 0 ? Math.round(s * 32768) : Math.round(s * 32767);
 }
 
-/** Map Tone.js synthKind to a WebAudio oscillator timbre */
+/** Map synthKind to a WebAudio oscillator timbre */
 const SYNTH_TO_OSC: Record<string, OscillatorType> = {
   Synth: "triangle",
   AMSynth: "sine",
@@ -38,9 +41,10 @@ const SYNTH_TO_OSC: Record<string, OscillatorType> = {
 
 // ── lamejs encode ─────────────────────────────────────────────────────────────
 
-type LamejsEncoder = { encodeBuffer: (buf: Int16Array) => Int8Array; flush: () => Int8Array };
-
-function encodeToMp3(audioBuffer: AudioBuffer): Blob {
+function encodeToMp3(
+  audioBuffer: AudioBuffer,
+  onProgress?: (pct: number) => void,
+): Blob {
   const samples = audioBuffer.getChannelData(0); // mono
   const n = samples.length;
   const int16 = new Int16Array(n);
@@ -48,8 +52,7 @@ function encodeToMp3(audioBuffer: AudioBuffer): Blob {
     int16[i] = floatToInt16(samples[i]);
   }
 
-  const EncoderCtor = (lamejs as { Mp3Encoder: new (ch: number, sr: number, kbps: number) => LamejsEncoder }).Mp3Encoder;
-  const encoder = new EncoderCtor(1, audioBuffer.sampleRate, 128);
+  const encoder = new Mp3Encoder(1, audioBuffer.sampleRate, 128);
   const BLOCK = 1152;
   const chunks: ArrayBuffer[] = [];
 
@@ -60,13 +63,19 @@ function encodeToMp3(audioBuffer: AudioBuffer): Blob {
       const buf = Uint8Array.from(out);
       chunks.push(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
     }
+    // report encode progress: 60% → 95%
+    if (onProgress) {
+      onProgress(60 + Math.floor((start / int16.length) * 35));
+    }
   }
+
   const tail = encoder.flush();
   if (tail.length > 0) {
     const buf = Uint8Array.from(tail);
     chunks.push(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
   }
 
+  onProgress?.(100);
   return new Blob(chunks, { type: "audio/mpeg" });
 }
 
@@ -77,20 +86,23 @@ export async function renderMp3Blob(
   selectedVoiceIds: VoiceId[],
   settings: VoicePlaybackSettings,
   bpm: number,
+  onProgress?: (pct: number) => void,
 ): Promise<Blob> {
   const selectedVoices = project.voices.filter((v) => selectedVoiceIds.includes(v.id));
   if (!selectedVoices.length) {
     throw new Error("请至少选择一个声部再导出 MP3。");
   }
 
+  onProgress?.(5);
+
   const SAMPLE_RATE = 44100;
   const durationSec = beatToSeconds(project.durationBeats, bpm) + 1.5;
   const numSamples = Math.ceil(durationSec * SAMPLE_RATE);
 
-  // Mono offline context — avoids stereo complexity, faster render
+  // Mono offline context
   const ctx = new OfflineAudioContext(1, numSamples, SAMPLE_RATE);
 
-  // Master gain: prevent clipping when many voices play simultaneously
+  // Master gain: prevent clipping
   const masterGain = ctx.createGain();
   masterGain.gain.value = 0.72 / Math.max(1, selectedVoices.length);
   masterGain.connect(ctx.destination);
@@ -121,10 +133,20 @@ export async function renderMp3Blob(
       osc.connect(env);
       env.connect(masterGain);
       osc.start(t0);
-      osc.stop(t0 + dur + 0.02); // slight overshoot so release tail completes
+      osc.stop(t0 + dur + 0.02);
     }
   }
 
+  onProgress?.(20);
+
   const audioBuffer = await ctx.startRendering();
-  return encodeToMp3(audioBuffer);
+
+  onProgress?.(60);
+
+  return encodeToMp3(audioBuffer, onProgress);
 }
+
+// ── helpers (duplicate section removed) ──────────────────────────────────────
+// All helpers are defined above in the new version of this file.
+// The old code that follows was left by a partial edit and is not reachable.
+

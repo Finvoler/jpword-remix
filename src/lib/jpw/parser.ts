@@ -81,7 +81,8 @@ function parseMeta(rawText: string, fileName: string, voiceSection: string): Pro
 }
 
 function splitVoiceSegments(line: string): string[] {
-  const matches = Array.from(line.matchAll(/\|\{C:[^}]+\}/g));
+  // Match any barline variant followed by {C:...}: |{C:, |:{C:, :|{C:, ||{C:, |]{C:, etc.
+  const matches = Array.from(line.matchAll(/\|[|:\]]*\{C:[^}]+\}/g));
   if (!matches.length) {
     return [];
   }
@@ -246,7 +247,23 @@ export function parseJpwProject(rawText: string, fileName: string): ScoreProject
   const meta = parseMeta(rawText, fileName, voiceSection);
   const blocks = splitVoiceBlocks(voiceSection);
   const blockRows = blocks.map((block) => block.split(/\r?\n/).filter((line) => line.includes("|{C:")));
-  const voiceCount = blockRows.reduce((max, rows) => Math.max(max, rows.length), 0);
+
+  // Detect single-voice: when there is only one non-empty block, all its rows represent
+  // separate systems for a single voice (no $ separators in the file).
+  // Multi-voice files always use $ to separate voices, producing multiple non-empty blocks.
+  const nonEmptyBlockRows = blockRows.filter((rows) => rows.length > 0);
+  let effectiveBlockRows: string[][];
+  let voiceCount: number;
+
+  if (nonEmptyBlockRows.length === 1) {
+    // Single-voice file: one block contains all system rows sequentially
+    voiceCount = 1;
+    effectiveBlockRows = nonEmptyBlockRows[0].map((row) => [row]);
+  } else {
+    // Multi-voice file: each block is a system, rows within the block = voices
+    voiceCount = blockRows.reduce((max, rows) => Math.max(max, rows.length), 0);
+    effectiveBlockRows = blockRows;
+  }
 
   if (voiceCount === 0) {
     throw new Error("未识别到可播放的声部谱行。");
@@ -271,7 +288,7 @@ export function parseJpwProject(rawText: string, fileName: string): ScoreProject
   const systems: ScoreSystem[] = [];
   let globalMeasureIndex = 0;
 
-  blockRows.forEach((rows, systemIndex) => {
+  effectiveBlockRows.forEach((rows, systemIndex) => {
     const rowSegments = rows.map((row) => splitMeasureSegments(row));
     const measureCount = rowSegments.reduce((max, segments) => Math.max(max, segments.length), 0);
     const systemRows: ScoreRow[] = [];

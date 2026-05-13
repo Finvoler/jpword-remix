@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MP3 Pipeline Test</title>
+<style>
+  body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #e0e0e0; }
+  h2 { color: #a0cfb8; }
+  .ok  { color: #6fcf97; }
+  .err { color: #eb5757; }
+  .warn { color: #f2c94c; }
+  pre  { background: #0d1117; padding: 12px; border-radius: 6px; overflow: auto; font-size: 13px; }
+  button { background: #4e7d71; color: #fff; border: none; padding: 10px 20px;
+           font-size: 1rem; border-radius: 8px; cursor: pointer; margin-top: 12px; }
+  button:disabled { opacity: 0.5; }
+  #download { margin-top: 16px; display: none; }
+  #download a { color: #6fcf97; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+<h2>MP3 Pipeline Browser Test</h2>
+<p>测试 <code>OfflineAudioContext</code> 合成 + <code>lamejs</code> 编码链路</p>
+<button id="btn">▶ 开始测试</button>
+<pre id="log">等待开始...</pre>
+<div id="download"></div>
+
+<!-- lamejs browser build from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.all.js"></script>
+<script>
+const log = document.getElementById('log');
+const btn = document.getElementById('btn');
+const dlDiv = document.getElementById('download');
+
+function append(cls, msg) {
+  const line = document.createElement('span');
+  line.className = cls;
+  line.textContent = msg + '\n';
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+function ok(msg)   { console.log('✅', msg);  append('ok',  '✅ ' + msg); }
+function err(msg)  { console.error('❌', msg); append('err', '❌ ' + msg); }
+function warn(msg) { console.warn('⚠️', msg);  append('warn','⚠️  ' + msg); }
+function info(msg) { console.log('   ', msg);  append('',    '   ' + msg); }
+
+// ── helpers (same as mp3.ts) ──────────────────────────────────────────────
+function midiToHz(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+function dbToLinear(db) { return Math.pow(10, db / 20); }
+function floatToInt16(v) {
+  const s = Math.max(-1, Math.min(1, v));
+  return s < 0 ? Math.round(s * 32768) : Math.round(s * 32767);
+}
+
+// ── synthetic test notes (soprano melody from 飞云之下) ─────────────────────
+// [midiPitch, startBeat, durationBeats] at BPM=88
+const BPM = 88;
+const testEvents = [
+  // Voice 1 soprano sketch (a few bars)
+  [76, 0, 0.5], [74, 0.5, 0.5], [73, 1, 1], [74, 2, 1],
+  [76, 3, 0.5], [73, 3.5, 0.5], [71, 4, 2],
+  [73, 6, 0.5], [71, 6.5, 0.5], [69, 7, 1], [71, 8, 1],
+  // Voice 2 alto
+  [69, 0, 1], [67, 1, 1], [69, 2, 2],
+  [67, 4, 1], [65, 5, 1], [64, 6, 2],
+  // Voice 3 tenor
+  [62, 0, 2], [64, 2, 2], [62, 4, 2], [60, 6, 2],
+  // Voice 4 bass
+  [45, 0, 4], [43, 4, 4],
+];
+const TOTAL_BEATS = 9;
+
+function beatToSeconds(beats) { return beats * (60 / BPM); }
+
+async function runTest() {
+  btn.disabled = true;
+  log.textContent = '';
+  dlDiv.style.display = 'none';
+
+  try {
+    // ── Step 1: Check lamejs ────────────────────────────────────────────────
+    if (typeof lamejs === 'undefined') {
+      err('lamejs 未加载（CDN 失败？）'); return;
+    }
+    if (typeof lamejs.Mp3Encoder !== 'function') {
+      err('lamejs.Mp3Encoder 不是构造函数。keys: ' + Object.keys(lamejs).join(', ')); return;
+    }
+    ok('lamejs.Mp3Encoder 找到');
+
+    // ── Step 2: OfflineAudioContext support ────────────────────────────────
+    if (typeof OfflineAudioContext === 'undefined') {
+      err('OfflineAudioContext 不可用（浏览器不支持）'); return;
+    }
+    ok('OfflineAudioContext 可用');
+
+    // ── Step 3: Render audio offline ───────────────────────────────────────
+    const SAMPLE_RATE = 44100;
+    const durationSec = beatToSeconds(TOTAL_BEATS) + 1.5;
+    const numSamples = Math.ceil(durationSec * SAMPLE_RATE);
+    info(`渲染参数: ${durationSec.toFixed(2)}s, ${numSamples} 样本`);
+
+    const ctx = new OfflineAudioContext(1, numSamples, SAMPLE_RATE);
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 0.72 / 4; // 4 voices
+    masterGain.connect(ctx.destination);
+
+    for (const [midi, startBeat, durBeats] of testEvents) {
+      const t0  = beatToSeconds(startBeat);
+      const dur = Math.max(0.05, beatToSeconds(durBeats));
+      const freq = midiToHz(midi);
+
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+
+      const env = ctx.createGain();
+      const attack  = Math.min(0.02, dur * 0.1);
+      const release = Math.min(0.15, dur * 0.25);
+      env.gain.setValueAtTime(0, t0);
+      env.gain.linearRampToValueAtTime(0.8, t0 + attack);
+      env.gain.setValueAtTime(0.56, t0 + dur - release);
+      env.gain.linearRampToValueAtTime(0, t0 + dur);
+
+      osc.connect(env);
+      env.connect(masterGain);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    }
+
+    const t1 = performance.now();
+    const audioBuffer = await ctx.startRendering();
+    const t2 = performance.now();
+    ok(`OfflineAudioContext 渲染完成 (${(t2-t1).toFixed(0)} ms)`);
+
+    // Check for silence
+    const samples = audioBuffer.getChannelData(0);
+    const peak = samples.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+    info(`峰值幅度: ${(peak * 100).toFixed(2)}%`);
+    if (peak < 0.001) {
+      err('输出是静音！音频渲染可能失败'); return;
+    }
+    ok(`信号有效 (峰值 ${(peak * 100).toFixed(1)}%)`);
+
+    // ── Step 4: lamejs encode ───────────────────────────────────────────────
+    const n = samples.length;
+    const int16 = new Int16Array(n);
+    for (let i = 0; i < n; i++) int16[i] = floatToInt16(samples[i]);
+
+    const t3 = performance.now();
+    const encoder = new lamejs.Mp3Encoder(1, SAMPLE_RATE, 128);
+    const BLOCK = 1152;
+    const chunks = [];
+
+    for (let start = 0; start < int16.length; start += BLOCK) {
+      const slice = int16.subarray(start, start + BLOCK);
+      const out = encoder.encodeBuffer(slice);
+      if (out.length > 0) chunks.push(new Uint8Array(out));
+    }
+    const tail = encoder.flush();
+    if (tail.length > 0) chunks.push(new Uint8Array(tail));
+    const t4 = performance.now();
+
+    const totalBytes = chunks.reduce((s, c) => s + c.length, 0);
+    ok(`lamejs 编码完成 (${(t4-t3).toFixed(0)} ms, ${totalBytes} bytes)`);
+
+    if (totalBytes < 500) {
+      err('输出 MP3 过小，编码可能失败'); return;
+    }
+
+    // ── Step 5: Validate MP3 header ────────────────────────────────────────
+    const blob = new Blob(chunks, { type: 'audio/mpeg' });
+    const header = chunks[0];
+    const h0 = header[0], h1 = header[1], h2 = header[2];
+    const isId3  = h0 === 0x49 && h1 === 0x44 && h2 === 0x33;
+    const isMpeg = h0 === 0xFF && (h1 & 0xE0) === 0xE0;
+    if (isId3 || isMpeg) {
+      ok(`MP3 文件头合法 (${isId3 ? 'ID3' : 'MPEG sync'})`);
+    } else {
+      const hex = [h0,h1,h2,header[3]].map(b=>'0x'+b.toString(16).padStart(2,'0')).join(' ');
+      warn(`文件头未识别 [${hex}]，但通常仍可播放`);
+    }
+
+    // ── Step 6: Create download link ───────────────────────────────────────
+    const url = URL.createObjectURL(blob);
+    dlDiv.innerHTML = `
+      <p class="ok">✅ 全部测试通过！文件大小: ${(blob.size/1024).toFixed(1)} KB</p>
+      <a href="${url}" download="test-output.mp3">⬇ 下载测试 MP3</a>
+      <audio controls style="display:block;margin-top:12px" src="${url}"></audio>
+    `;
+    dlDiv.style.display = 'block';
+
+    ok('══ 链路验证完成 ══');
+  } catch (e) {
+    err('未捕获异常: ' + (e && e.message || String(e)));
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+btn.addEventListener('click', () => void runTest());
+</script>
+</body>
+</html>

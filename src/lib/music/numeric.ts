@@ -26,7 +26,18 @@ export function tonicToMidiRoot(tonic: string): number {
 }
 
 export function tokenToMidi(tonic: string, tokenCore: string): number | null {
-  const digitMatch = tokenCore.match(/[0-7]/);
+  // Strip # (sharp, +1 semitone) or b-before-digit (flat, -1 semitone) prefix.
+  let accidentalShift = 0;
+  let core = tokenCore;
+  if (core.startsWith("#")) {
+    accidentalShift = 1;
+    core = core.slice(1);
+  } else if (/^b[1-7]/.test(core)) {
+    accidentalShift = -1;
+    core = core.slice(1);
+  }
+
+  const digitMatch = core.match(/[0-7]/);
   if (!digitMatch) {
     return null;
   }
@@ -39,7 +50,7 @@ export function tokenToMidi(tonic: string, tokenCore: string): number | null {
   // JPW octave markers:
   //   ' (apostrophe) or g (高/gāo) after digit → +1 octave (+12 semitones)
   //   , (comma)      or d (低/dī)  after digit → -1 octave (-12 semitones)
-  const parts = tokenCore.match(/^([gd]?)[0-7]([,']*)([gd]?)$/i);
+  const parts = core.match(/^([gd]?)[0-7]([,']*)([gd]?)$/i);
   const prefix = parts?.[1]?.toLowerCase() ?? "";
   const suffix = parts?.[3]?.toLowerCase() ?? "";
   const octaveText = parts?.[2] ?? "";
@@ -53,7 +64,7 @@ export function tokenToMidi(tonic: string, tokenCore: string): number | null {
   const octaveShift = (octaveUp - octaveDown + letterShift) * 12;
   const scaleOffset = MAJOR_SCALE_OFFSETS[degree - 1];
 
-  return tonicToMidiRoot(tonic) + scaleOffset + octaveShift;
+  return tonicToMidiRoot(tonic) + scaleOffset + octaveShift + accidentalShift;
 }
 
 export function midiToPitch(midi: number): { step: string; alter: number; octave: number } {

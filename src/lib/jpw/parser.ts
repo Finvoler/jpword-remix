@@ -1,17 +1,32 @@
 import { VoiceId, type NoteEvent, type NotationMark, type ProjectMeta, type ScoreMeasure, type ScoreProject, type ScoreRow, type ScoreSystem, type ScoreToken, type VoicePart } from "../../types";
 import { clampDurationBeats, tokenToMidi } from "../music/numeric";
 
-const TOKEN_REGEX = /(\(*)?([A-Za-z]?[0-7][,']*[A-Za-z]?)([_\.-]*)\{C:([0-9.]+)(?:\([^}]*\))?\}(\)*)/g;
+// Matches any JPW note token with timing annotation.
+// Group 1: opening slur parens  Group 2: token core (with optional # sharp prefix)
+// Group 3: duration shape (_, -, .)  Group 4: timing float value
+// Group 5: closing slur parens
+// The {C:N...} pattern handles all modifier variants: plain N, N,None, N,Other,
+// N(beat,breakdown,...), N(beats...),None, N,,  etc.
+const TOKEN_REGEX = /(\(*)?([#]?[A-Za-z]?[0-7][,']*[A-Za-z]?)([_\.-]*)\{C:([0-9.]+)(?:\([^}]*\))?[^}]*\}(\)*)/g;
 const DEFAULT_BPM = 88;
 
 const genericVoiceLabels = ["声部一", "声部二", "声部三", "声部四"];
 
 function parseTokenCore(tokenCore: string): { accidental: "sharp" | "flat" | null; octaveShift: number } {
-  // JPW octave markers:
-  //   ' (apostrophe) or g (高/gāo) after digit → +1 octave
-  //   , (comma)      or d (低/dī)  after digit → -1 octave
-  // Neither g nor d represents a semitone accidental in JPW format.
-  const parts = tokenCore.match(/^([gd]?)[0-7]([,']*)([gd]?)$/i);
+  // Strip # (sharp) or b-before-digit (flat) prefix, then parse octave markers.
+  // JPW octave markers: ' or g (高) → +1 octave; , or d (低) → -1 octave
+  let accidental: "sharp" | "flat" | null = null;
+  let core = tokenCore;
+  if (core.startsWith("#")) {
+    accidental = "sharp";
+    core = core.slice(1);
+  } else if (/^b[1-7]/.test(core)) {
+    // 'b' immediately before a digit means flat accidental (not a g/d octave letter)
+    accidental = "flat";
+    core = core.slice(1);
+  }
+
+  const parts = core.match(/^([gd]?)[0-7]([,']*)([gd]?)$/i);
   const prefix = parts?.[1]?.toLowerCase() ?? "";
   const suffix = parts?.[3]?.toLowerCase() ?? "";
   const octaveText = parts?.[2] ?? "";
@@ -21,7 +36,7 @@ function parseTokenCore(tokenCore: string): { accidental: "sharp" | "flat" | nul
     (prefix === "d" || suffix === "d" ? 1 : 0);
 
   return {
-    accidental: null, // JPW uses g/d for octave, not semitones
+    accidental,
     octaveShift:
       (octaveText.match(/'/g) ?? []).length -
       (octaveText.match(/,/g) ?? []).length +
@@ -131,7 +146,7 @@ function splitVoiceBlocks(voiceSection: string): string[] {
 }
 
 function hasPlayableToken(segment: string): boolean {
-  return /[A-Za-z]?[0-7][,']*[A-Za-z]?[_\.-]*\{C:/.test(segment);
+  return /[#]?[A-Za-z]?[0-7][,']*[A-Za-z]?[_\.-]*\{C:/.test(segment);
 }
 
 function splitMeasureSegments(rowLine: string): string[] {
